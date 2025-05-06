@@ -1,133 +1,192 @@
-AS7343 CircuitPython Library
-============================
+# AS7343 CircuitPython Library
 
-.. image:: https://github.com/yourusername/AS7343-circuitpython-bundle/workflows/Build%20CI/badge.svg
-   :target: https://github.com/yourusername/AS7343-circuitpython-bundle/actions
+[![Build Status](https://github.com/yourusername/AS7343-circuitpython-bundle/actions/workflows/build.yml/badge.svg)](https://github.com/yourusername/AS7343-circuitpython-bundle/actions)
 
-A CircuitPython library for the AMS AS7343 14-channel spectral sensor. This sensor provides high-resolution spectral measurements across the visible and near-infrared spectrum, making it suitable for color matching, fluid analysis, spectral identification, and environmental monitoring applications.
+A CircuitPython driver for the AMS AS7343 14-channel spectral sensor. This device offers precise spectral measurements across the visible and near-infrared range, supporting applications like color matching, light source profiling, and reflectance-based analysis.
 
-Description
------------
+---
 
-The AS7343 is a 14-channel spectral sensor that can detect light across multiple wavelength bands from approximately 380nm to 1000nm:
+## Description
 
-- 11 channels in the visible spectrum (F1-F8, FZ, FY, FXL)
-- 1 near-infrared channel (NIR)
-- 1 clear channel with no filtering (CLR)
-- 1 flicker detection channel (not implemented in this library)
+The AMS AS7343 provides spectral data from approximately 380 nm to 1000 nm through 14 independent channels:
 
-Each channel is sensitive to a specific wavelength band, allowing for detailed spectral analysis of light sources, reflected colors, or transmitted light through fluids.
+- **Visible spectrum (F1–F8, FZ, FY, FXL)**
+- **Near-infrared (NIR)**
+- **Clear (unfiltered)**
+- (Flicker detection is not included in this driver)
 
-.. image:: https://github.com/yourusername/AS7343-circuitpython-bundle/raw/main/docs/as7343_spectral_response.png
+Due to its multiplexed design, the AS7343 uses an internal SMUX (sensor multiplexer) to switch among groups of photodiodes. This allows measurement across the full spectrum using only a small number of ADCs.
 
-Features
---------
+---
 
-- Simple initialization with I2C
-- Configurable gain settings (0.5x to 2048x)
-- Adjustable integration time
-- Complete 14-channel spectral readings
-- Power management and low power modes
-- Threshold detection
-- Channel grouping using SMUX
+## Features
 
-Dependencies
-------------
+- Fully configurable via I2C (address: `0x39`)
+- Spectral data from 14 channels:
+  - `F1–F4`, `FZ`, `FY`, `F5`, `F6–F8`, `FXL`, `NIR`, `CLR`
+- Adjustable gain:
+  - `0.5x` to `2048x` via `GAIN_` constants
+- Programmable integration time (μs resolution)
+- SMUX mode selection to target spectral ranges
+- On-demand and periodic measurements
+- Power management options:
+  - Low power idle
+  - Sleep After Interrupt (SAI)
+  - Full shutdown/wake
+- Threshold detection with high-channel alerts
+- Simple interface using CircuitPython and BusDevice
 
-This driver depends on:
+---
 
-- `Adafruit CircuitPython <https://github.com/adafruit/circuitpython>`_
-- `Bus Device <https://github.com/adafruit/Adafruit_CircuitPython_BusDevice>`_
+## Hardware
 
-To install the dependencies, use the Adafruit CircuitPython bundle:
-https://github.com/adafruit/Adafruit_CircuitPython_Bundle
+- **Sensor Datasheet**: [AS7343 at ams.com](https://ams.com/as7343)
+- **I2C Address**: `0x39`
+- Compatible with STEMMA QT, Qwiic, or direct I2C wiring
+- Supports 3.3V I2C logic levels
 
-Usage Example
--------------
+---
 
-::
+## Dependencies
 
-    import board
-    import time
-    import as7343
+This library requires:
 
-    i2c = board.STEMMA_I2C()
-    sensor = as7343.AS7343(i2c)
+- [Adafruit CircuitPython](https://github.com/adafruit/circuitpython)
+- [Adafruit CircuitPython BusDevice](https://github.com/adafruit/Adafruit_CircuitPython_BusDevice)
 
-    sensor.gain = as7343.GAIN_64X
-    sensor.integration_time = 100000
+To install all dependencies, download the [CircuitPython bundle](https://circuitpython.org/libraries), and copy the following files into your device’s `lib/` directory:
 
-    data = sensor.read_all()
+- `as7343.py` (from this repo)
+- `adafruit_bus_device/` (from the bundle)
 
-    print("Spectral Data:")
-    for key, val in data.items():
-        print(f"{key}: {val}")
+---
 
-Advanced Usage
---------------
+## Installation
 
-**SMUX Channel Modes**
+To install:
 
-::
+1. Connect your CircuitPython device (e.g., Pico W, Feather, QT Py).
+2. Mount it as a USB drive.
+3. Copy `as7343.py` into the `lib/` directory.
+4. Ensure `adafruit_bus_device` is also present in `lib/`.
 
-    visible_data = sensor.read_smux_mode(as7343.SMUX_VISIBLE)
-    nir_data = sensor.read_smux_mode(as7343.SMUX_NIR)
-    fzf5_data = sensor.read_smux_mode(as7343.SMUX_FZF5)
+Once installed, import and begin using the library in `code.py`.
 
-**Power Management**
+---
 
-::
+## Basic Usage
 
-    sensor.enable_low_power_mode(True)
-    sensor.shutdown()
-    sensor.wake()
+```python
+import board
+import time
+import as7343
 
-**Gain & Integration**
+i2c = board.STEMMA_I2C()
+sensor = as7343.AS7343(i2c)
 
-::
+# Configure sensor
+sensor.gain = as7343.GAIN_64X
+sensor.integration_time = 100000  # 100 ms
 
-    sensor.gain = as7343.GAIN_2048X
-    sensor.integration_time = 200000
+# Perform full scan
+data = sensor.read_all()
 
-Interpreting Spectral Data
---------------------------
+# Print results
+print("AS7343 Full Spectrum Read:")
+for channel, value in data.items():
+    print(f"{channel}: {value}")
+```
 
-- Relative ADC counts (max 65535) per channel
-- Create ratios or visualize as spectra
-- For calibrated irradiance, reference a known spectroradiometer
+---
 
-Hardware Considerations
------------------------
+## SMUX Mode Reads
 
-- Mount sensor facing light source
-- Use diffusers for consistency
-- For reflective color use, synchronize with illumination:
+Use `read_smux_mode()` to selectively access different groups of channels:
 
-::
+```python
+visible = sensor.read_smux_mode(as7343.SMUX_VISIBLE)
+nir = sensor.read_smux_mode(as7343.SMUX_NIR)
+extra = sensor.read_smux_mode(as7343.SMUX_FZF5)
+```
 
-    import digitalio
-    led = digitalio.DigitalInOut(board.D5)
-    led.direction = digitalio.Direction.OUTPUT
-    led.value = True
-    data = sensor.read_all()
-    led.value = False
+Each call triggers an appropriate SMUX setup, performs a scan, and returns a dictionary of results.
 
-Troubleshooting
----------------
+---
 
-**Saturation (65535 readings):**
+## Gain and Integration Time
 
-- Lower gain or integration time
-- Move sensor farther
-- Use filters
+Gain amplifies the analog signal before ADC conversion:
 
-**Low Readings:**
+```python
+sensor.gain = as7343.GAIN_2048X
+```
 
-- Increase gain/integration
-- Check light path
-- Use stronger source
+Integration time sets the light collection period in microseconds:
 
-License
--------
+```python
+sensor.integration_time = 200000  # 200 ms
+```
 
-This library is released under the MIT license. See LICENSE file for details.
+Adjust both for optimal results in varying light levels.
+
+---
+
+## Power Management
+
+To save energy during idle times:
+
+```python
+sensor.enable_low_power_mode(True)
+```
+
+Sleep After Interrupt (SAI):
+
+```python
+sensor.enable_sleep_after_interrupt(True)
+```
+
+Full shutdown and wake:
+
+```python
+sensor.shutdown()
+...
+sensor.wake()
+```
+
+---
+
+## Threshold Monitoring
+
+You can check for oversaturation:
+
+```python
+data = sensor.read_all()
+alert_channels = sensor.check_thresholds(60000)
+
+for label, value in alert_channels:
+    print(f"WARNING: {label} = {value}")
+```
+
+---
+
+## Channel Map
+
+- F1–F4: Violet to green (~405–515 nm)
+- F5, FY: Green/yellow (~550–560 nm)
+- F6–F8: Red/NIR (~640–745 nm)
+- FZ, FXL: Intermediate bands (~450, 600 nm)
+- NIR: ~855 nm
+- CLR: Full-spectrum unfiltered
+
+---
+
+## License
+
+This library is released under the MIT License.  
+Copyright (c) 2025.
+
+---
+
+## Author
+
+Your Name – [GitHub Repository](https://github.com/yourusername/AS7343-circuitpython-bundle)

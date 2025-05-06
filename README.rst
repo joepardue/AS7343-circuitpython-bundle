@@ -1,135 +1,99 @@
 AS7343 CircuitPython Library
-============================
+=============================
 
-.. image:: https://img.shields.io/badge/AS7343-CircuitPython-blue.svg
-   :target: https://github.com/yourusername/AS7343-circuitpython-bundle
+A CircuitPython driver for the AMS AS7343 14-channel spectral sensor. This device provides high-resolution spectral measurements across the visible and near-infrared spectrum, making it ideal for:
 
-CircuitPython driver for the AMS AS7343 14-channel spectral sensor. This sensor provides high-resolution spectral measurements across the visible and near-infrared spectrum with a compact I2C interface.
+- Color measurement and classification
+- LED spectrum analysis
+- Environmental light sensing
+- Low-cost lab and educational tools
 
 Description
 -----------
 
-The AS7343 is a 14-channel multi-spectral sensor with the following key capabilities:
+The AMS AS7343 is a spectral sensor offering readings from approximately 380nm to 1000nm. It includes:
 
-- 14 distinct wavelength bands from ~380–1000nm:
-  - 11 visible/NIR bands (F1–F8, FY, FZ, FXL)
-  - 1 clear/unfiltered channel (CLR)
-  - 1 near-infrared channel (NIR)
-- Adjustable integration time and gain
-- Multiple SMUX channel configurations
-- Low power and sleep-after-interrupt modes
+- 14 photodiode channels: F1–F8, FZ, FY, FXL, NIR, and CLR
+- Adjustable gain (0.5x to 2048x)
+- Integration time in microseconds
+- Internal SMUX (sensor multiplexer) to cycle through photodiode sets
+- I2C interface (address 0x39)
 
-This driver supports full-channel scans or selective reads using SMUX modes. It also includes power management and threshold alert support.
+This driver provides methods to set gain/integration time, select SMUX modes, perform full or partial scans, and manage power settings.
 
-Hardware
+Features
 --------
 
-- `AMS AS7343 Datasheet <https://ams.com/as7343>`_
-- I2C address: 0x39
-- Recommended breakout: Custom AS7343 module or Adafruit-compatible Qwiic boards
-
-Dependencies
-------------
-
-This driver depends on:
-
-- `Adafruit CircuitPython <https://github.com/adafruit/circuitpython>`_
-- `Adafruit Bus Device <https://github.com/adafruit/Adafruit_CircuitPython_BusDevice>`_
+- Full 14-channel spectral measurement using read_all()
+- SMUX mode selection for visible, NIR, and extended bands
+- Low-power mode and sleep-after-interrupt (SAI)
+- Saturation threshold checking
+- Compatible with CircuitPython and Adafruit BusDevice
 
 Installation
 ------------
 
-To install this library, copy `as7343.py` to your device, along with the dependencies listed above. For full bundles, visit:
+1. Download the CircuitPython library bundle from https://circuitpython.org/libraries
+2. Copy the following into the `lib/` directory on your device:
+   - `as7343.py` (from this repo)
+   - `adafruit_bus_device` (from the bundle)
 
-https://circuitpython.org/libraries
-
-Quickstart
-----------
-
-Basic usage example:
+Usage Example
+-------------
 
 .. code-block:: python
 
     import board
     import as7343
+    import time
 
     i2c = board.STEMMA_I2C()
     sensor = as7343.AS7343(i2c)
-
     sensor.gain = as7343.GAIN_64X
-    sensor.integration_time = 100000  # 100 ms
+    sensor.integration_time = 100000
 
     data = sensor.read_all()
-    print("Full Spectral Data:")
-    for k, v in data.items():
-        print(f"{k}: {v}")
+    for ch, val in data.items():
+        print(f"{ch}: {val}")
 
-SMUX Mode Reads
----------------
+Advanced Use
+------------
 
-Use `read_smux_mode()` for efficient grouped reads:
+SMUX Read Example::
 
-.. code-block:: python
+    sensor.read_smux_mode(as7343.SMUX_VISIBLE)
+    sensor.read_smux_mode(as7343.SMUX_NIR)
+    sensor.read_smux_mode(as7343.SMUX_FZF5)
 
-    vis_data = sensor.read_smux_mode(as7343.SMUX_VISIBLE)
-    nir_data = sensor.read_smux_mode(as7343.SMUX_NIR)
-
-Threshold Monitoring
---------------------
-
-To detect saturated or high-value channels:
-
-.. code-block:: python
-
-    flagged = sensor.check_thresholds(60000)
-    if flagged:
-        print("High values detected:")
-        for channel, value in flagged:
-            print(f"{channel}: {value}")
-
-Power Management
-----------------
-
-The sensor supports low-power and sleep modes:
-
-.. code-block:: python
+Power Management::
 
     sensor.enable_low_power_mode(True)
+    sensor.enable_sleep_after_interrupt(True)
     sensor.shutdown()
     sensor.wake()
 
-Channel Summary
----------------
+Threshold Check::
 
-The `read_all()` function provides these 14 channel readings:
+    alerts = sensor.check_thresholds(60000)
+    for ch, value in alerts:
+        print(f"High reading: {ch} = {value}")
 
-- F1  (405nm)
-- F2  (425nm)
-- F3  (475nm)
-- F4  (515nm)
-- FY  (555nm)
-- F5  (550nm)
-- F6  (640nm)
-- F7  (690nm)
-- F8  (745nm)
-- FZ  (450nm)
-- FXL (600nm)
-- NIR (~855nm)
-- CLR (Clear)
+Supported Channels
+------------------
 
-These can be accessed via:
-
-- `sensor.data` – dictionary of last values
-- `sensor.channels` – list in standard order
-
-Contributing
-------------
-
-Improvements are welcome! Please file issues or submit PRs via:
-
-https://github.com/yourusername/AS7343-circuitpython-bundle
+- F1, F2, F3, F4 – Violet to green (405–515 nm)
+- FY, F5 – Green/yellow (~555–560 nm)
+- F6, F7, F8 – Red to deep red (640–745 nm)
+- FZ, FXL – Additional narrowbands (450, 600 nm)
+- NIR – Near infrared (~855 nm)
+- CLR – Clear (broadband)
 
 License
 -------
 
-This library is licensed under the MIT License. See ``LICENSE`` for full details.
+MIT License
+
+Author
+------
+
+Your Name - https://github.com/yourusername/AS7343-circuitpython-bundle

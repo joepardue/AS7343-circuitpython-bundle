@@ -1,192 +1,99 @@
 # AS7343 CircuitPython Library
 
-[![Build Status](https://github.com/yourusername/AS7343-circuitpython-bundle/actions/workflows/build.yml/badge.svg)](https://github.com/yourusername/AS7343-circuitpython-bundle/actions)
 
-A CircuitPython driver for the AMS AS7343 14-channel spectral sensor. This device offers precise spectral measurements across the visible and near-infrared range, supporting applications like color matching, light source profiling, and reflectance-based analysis.
+A CircuitPython driver for the AMS AS7343 14-channel spectral sensor. This device provides high-resolution spectral measurements across the visible and near-infrared spectrum, making it ideal for:
 
----
+- Color measurement and classification
+- LED spectrum analysis
+- Environmental light sensing
+- Low-cost lab and educational tools
 
-## Description
+Description
+-----------
 
-The AMS AS7343 provides spectral data from approximately 380 nm to 1000 nm through 14 independent channels:
+The AMS AS7343 is a spectral sensor offering readings from approximately 380nm to 1000nm. It includes:
 
-- **Visible spectrum (F1–F8, FZ, FY, FXL)**
-- **Near-infrared (NIR)**
-- **Clear (unfiltered)**
-- (Flicker detection is not included in this driver)
+- 14 photodiode channels: F1–F8, FZ, FY, FXL, NIR, and CLR
+- Adjustable gain (0.5x to 2048x)
+- Integration time in microseconds
+- Internal SMUX (sensor multiplexer) to cycle through photodiode sets
+- I2C interface (address 0x39)
 
-Due to its multiplexed design, the AS7343 uses an internal SMUX (sensor multiplexer) to switch among groups of photodiodes. This allows measurement across the full spectrum using only a small number of ADCs.
+This driver provides methods to set gain/integration time, select SMUX modes, perform full or partial scans, and manage power settings.
 
----
+Features
+--------
 
-## Features
+- Full 14-channel spectral measurement using read_all()
+- SMUX mode selection for visible, NIR, and extended bands
+- Low-power mode and sleep-after-interrupt (SAI)
+- Saturation threshold checking
+- Compatible with CircuitPython and Adafruit BusDevice
 
-- Fully configurable via I2C (address: `0x39`)
-- Spectral data from 14 channels:
-  - `F1–F4`, `FZ`, `FY`, `F5`, `F6–F8`, `FXL`, `NIR`, `CLR`
-- Adjustable gain:
-  - `0.5x` to `2048x` via `GAIN_` constants
-- Programmable integration time (μs resolution)
-- SMUX mode selection to target spectral ranges
-- On-demand and periodic measurements
-- Power management options:
-  - Low power idle
-  - Sleep After Interrupt (SAI)
-  - Full shutdown/wake
-- Threshold detection with high-channel alerts
-- Simple interface using CircuitPython and BusDevice
+Installation
+------------
 
----
+1. Download the CircuitPython library bundle from https://circuitpython.org/libraries
+2. Copy the following into the `lib/` directory on your device:
+   - `as7343.py` (from this repo)
+   - `adafruit_bus_device` (from the bundle)
 
-## Hardware
+Usage Example
+-------------
 
-- **Sensor Datasheet**: [AS7343 at ams.com](https://ams.com/as7343)
-- **I2C Address**: `0x39`
-- Compatible with STEMMA QT, Qwiic, or direct I2C wiring
-- Supports 3.3V I2C logic levels
+.. code-block:: python
 
----
+    import board
+    import as7343
+    import time
 
-## Dependencies
+    i2c = board.STEMMA_I2C()
+    sensor = as7343.AS7343(i2c)
+    sensor.gain = as7343.GAIN_64X
+    sensor.integration_time = 100000
 
-This library requires:
+    data = sensor.read_all()
+    for ch, val in data.items():
+        print(f"{ch}: {val}")
 
-- [Adafruit CircuitPython](https://github.com/adafruit/circuitpython)
-- [Adafruit CircuitPython BusDevice](https://github.com/adafruit/Adafruit_CircuitPython_BusDevice)
+Advanced Use
+------------
 
-To install all dependencies, download the [CircuitPython bundle](https://circuitpython.org/libraries), and copy the following files into your device’s `lib/` directory:
+SMUX Read Example::
 
-- `as7343.py` (from this repo)
-- `adafruit_bus_device/` (from the bundle)
+    sensor.read_smux_mode(as7343.SMUX_VISIBLE)
+    sensor.read_smux_mode(as7343.SMUX_NIR)
+    sensor.read_smux_mode(as7343.SMUX_FZF5)
 
----
+Power Management::
 
-## Installation
+    sensor.enable_low_power_mode(True)
+    sensor.enable_sleep_after_interrupt(True)
+    sensor.shutdown()
+    sensor.wake()
 
-To install:
+Threshold Check::
 
-1. Connect your CircuitPython device (e.g., Pico W, Feather, QT Py).
-2. Mount it as a USB drive.
-3. Copy `as7343.py` into the `lib/` directory.
-4. Ensure `adafruit_bus_device` is also present in `lib/`.
+    alerts = sensor.check_thresholds(60000)
+    for ch, value in alerts:
+        print(f"High reading: {ch} = {value}")
 
-Once installed, import and begin using the library in `code.py`.
+Supported Channels
+------------------
 
----
+- F1, F2, F3, F4 – Violet to green (405–515 nm)
+- FY, F5 – Green/yellow (~555–560 nm)
+- F6, F7, F8 – Red to deep red (640–745 nm)
+- FZ, FXL – Additional narrowbands (450, 600 nm)
+- NIR – Near infrared (~855 nm)
+- CLR – Clear (broadband)
 
-## Basic Usage
+License
+-------
 
-```python
-import board
-import time
-import as7343
+MIT License
 
-i2c = board.STEMMA_I2C()
-sensor = as7343.AS7343(i2c)
+Author
+------
 
-# Configure sensor
-sensor.gain = as7343.GAIN_64X
-sensor.integration_time = 100000  # 100 ms
-
-# Perform full scan
-data = sensor.read_all()
-
-# Print results
-print("AS7343 Full Spectrum Read:")
-for channel, value in data.items():
-    print(f"{channel}: {value}")
-```
-
----
-
-## SMUX Mode Reads
-
-Use `read_smux_mode()` to selectively access different groups of channels:
-
-```python
-visible = sensor.read_smux_mode(as7343.SMUX_VISIBLE)
-nir = sensor.read_smux_mode(as7343.SMUX_NIR)
-extra = sensor.read_smux_mode(as7343.SMUX_FZF5)
-```
-
-Each call triggers an appropriate SMUX setup, performs a scan, and returns a dictionary of results.
-
----
-
-## Gain and Integration Time
-
-Gain amplifies the analog signal before ADC conversion:
-
-```python
-sensor.gain = as7343.GAIN_2048X
-```
-
-Integration time sets the light collection period in microseconds:
-
-```python
-sensor.integration_time = 200000  # 200 ms
-```
-
-Adjust both for optimal results in varying light levels.
-
----
-
-## Power Management
-
-To save energy during idle times:
-
-```python
-sensor.enable_low_power_mode(True)
-```
-
-Sleep After Interrupt (SAI):
-
-```python
-sensor.enable_sleep_after_interrupt(True)
-```
-
-Full shutdown and wake:
-
-```python
-sensor.shutdown()
-...
-sensor.wake()
-```
-
----
-
-## Threshold Monitoring
-
-You can check for oversaturation:
-
-```python
-data = sensor.read_all()
-alert_channels = sensor.check_thresholds(60000)
-
-for label, value in alert_channels:
-    print(f"WARNING: {label} = {value}")
-```
-
----
-
-## Channel Map
-
-- F1–F4: Violet to green (~405–515 nm)
-- F5, FY: Green/yellow (~550–560 nm)
-- F6–F8: Red/NIR (~640–745 nm)
-- FZ, FXL: Intermediate bands (~450, 600 nm)
-- NIR: ~855 nm
-- CLR: Full-spectrum unfiltered
-
----
-
-## License
-
-This library is released under the MIT License.  
-Copyright (c) 2025.
-
----
-
-## Author
-
-Your Name – [GitHub Repository](https://github.com/yourusername/AS7343-circuitpython-bundle)
+Your Name - https://github.com/yourusername/AS7343-circuitpython-bundle
